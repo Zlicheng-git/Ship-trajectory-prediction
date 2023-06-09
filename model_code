@@ -1,1 +1,408 @@
 
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jun  6 18:33:33 2023
+
+@author: HP
+"""
+
+import tensorflow as tf
+from tensorflow import keras
+import numpy as np
+import pandas as pd
+from matplotlib import pyplot as plt
+import random
+from math import sqrt, pi
+import datetime
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+
+def interdata(data, times, intercolname, intermmsi):
+    newtimeseq = pd.DataFrame(pd.date_range(start=data[times].values[0]
+                                            , end=data[times].values[-1]
+                                            , freq='T')
+                              , columns=[times])
+    newdata = pd.merge(newtimeseq, data, on=times, how='left')
+    
+    for i in intercolname:
+        newdata[i] = newdata[i].interpolate(method='cubic')
+    
+    for i in intermmsi:
+        newdata[i] = newdata[i].interpolate(method='nearest')
+    
+    return newdata
+
+
+timefun = lambda x: datetime.datetime.strptime(x, "%Y-%m-%d %H:%M:%S")
+use_col = ['UnixTime_FEN', 'MMSI_', 'Lon_d', 'Lat_d', 'Heading', 'Course', 'Speed']
+
+data_190101 = pd.read_csv('G:/submit/ais201906_522.csv', usecols=use_col) #, usecols=use_col
+data_190101 = data_190101.loc[:, use_col]
+data_190101['UnixTime_FEN'] = data_190101['UnixTime_FEN'].apply(timefun)
+data_1902 = pd.read_csv('F:/MTAD/ais201902_66.csv', index_col=0)
+data_1902 = data_1902.loc[:, use_col]
+data_1902['UnixTime_FEN'] = data_1902['UnixTime_FEN'].apply(timefun)
+
+mmsi061 = data_190101[data_190101['MMSI_'] == 414386000] #41397643699913 41397162799930  232017938
+mmsi062 = data_190101[data_190101['MMSI_'] == 3129580009996] #41399909999921                 3749620009996
+
+# mmsi061 = mmsi061.iloc[20:320,:] #3571090009997
+# mmsi062 = mmsi062.iloc[150:420,:] #4142730009997
+mmsi021 = data_1902[data_1902['MMSI_'] == 413450480]
+mmsi022 = data_1902[data_1902['MMSI_'] == 4134256109990]
+
+mmsi061.rename(columns={'Lon_d': 'LON', 'Lat_d': 'LAT', 'Course': 'COG', 'Speed': 'SOG'}, inplace=True)
+mmsi062.rename(columns={'Lon_d': 'LON', 'Lat_d': 'LAT', 'Course': 'COG', 'Speed': 'SOG'}, inplace=True)
+mmsi021.rename(columns={'Lon_d': 'LON', 'Lat_d': 'LAT', 'Course': 'COG', 'Speed': 'SOG'}, inplace=True)
+mmsi022.rename(columns={'Lon_d': 'LON', 'Lat_d': 'LAT', 'Course': 'COG', 'Speed': 'SOG'}, inplace=True)
+
+mmsi061 = interdata(mmsi061, times='UnixTime_FEN', intercolname=['LON', 'LAT', 'Heading', 'COG', 'SOG']
+                              , intermmsi=['MMSI_'])
+mmsi062 = interdata(mmsi062, times='UnixTime_FEN', intercolname=['LON', 'LAT', 'Heading', 'COG', 'SOG']
+                              , intermmsi=['MMSI_'])
+
+mmsi021 = interdata(mmsi021, times='UnixTime_FEN', intercolname=['LON', 'LAT', 'Heading', 'COG', 'SOG']
+                              , intermmsi=['MMSI_'])
+mmsi022 = interdata(mmsi022, times='UnixTime_FEN', intercolname=['LON', 'LAT', 'Heading', 'COG', 'SOG']
+                              , intermmsi=['MMSI_'])
+
+data1 = pd.merge(mmsi061, mmsi062, how='left', on='UnixTime_FEN')
+data1.dropna(subset=['LON_y'], axis=0, inplace=True)
+data2 = pd.merge(mmsi021, mmsi022, how='left', on='UnixTime_FEN')
+data2.dropna(subset=['LON_y'], axis=0, inplace=True)
+
+use_data1 = data1.loc[:,['MMSI__x', 'UnixTime_FEN', 'LON_x', 'LAT_x', 'SOG_x', 'COG_x', 'Heading_x']]
+
+use_data1['LON_x_y'], use_data1['LAT_x_y']= data1.LON_x - data1.LON_y, data1.LAT_x - data1.LAT_y
+use_data1['SOG_x_y'], use_data1['COG_x_y']= data1.SOG_x - data1.SOG_y, data1.COG_x - data1.COG_y
+use_data1['Heading_x_y'] = data1.Heading_x - data1.Heading_y
+
+use_data2 = data2.loc[:,['MMSI__x', 'UnixTime_FEN', 'LON_x', 'LAT_x', 'SOG_x', 'COG_x', 'Heading_x']]
+
+use_data2['LON_x_y'], use_data2['LAT_x_y']= data2.LON_x - data2.LON_y, data2.LAT_x - data2.LAT_y
+use_data2['SOG_x_y'], use_data2['COG_x_y']= data2.SOG_x - data2.SOG_y, data2.COG_x - data2.COG_y
+use_data2['Heading_x_y'] = data2.Heading_x - data2.Heading_y
+
+
+def interdata(data, times, intercolname, intermmsi):
+    newtimeseq = pd.DataFrame(pd.date_range(start=data[times].values[0]
+                                            , end=data[times].values[-1]
+                                            , freq='T')
+                              , columns=[times])
+    newdata = pd.merge(newtimeseq, data, on=times, how='left')
+    
+    for i in intercolname:
+        newdata[i] = newdata[i].interpolate(method='cubic')
+    
+    for i in intermmsi:
+        newdata[i] = newdata[i].interpolate(method='nearest')
+    
+    return newdata
+
+
+def Standardization(data):
+    return (data - data.mean(axis=0)) / data.std(axis=0)
+
+def RMSE(y_pre, y_real):
+    return sqrt(np.sum((y_pre - y_real) ** 2) / y_pre.shape[0])
+
+def loss_function(predicted_x , target ):
+    loss = np.sum(np.square(predicted_x - target) , axis= 1)/(predicted_x.size()[1])
+    loss = np.sum(loss)/loss.shape[0]
+    return loss
+
+# 将购买序列生成分类数据基本格式
+def samples(data, num):
+    seq_data = pd.DataFrame()
+    for k in range(0, (data.shape[0] - num) + 1):
+        seq_data = seq_data.append(data[k : (k + num)])
+    return seq_data
+
+# 去除不需要的列
+def data_columns(data, need_col):
+    index = list(data.columns)
+    drop_col = list(set(index) - set(need_col))
+    data.drop(drop_col, inplace=True, axis=1)
+    data.reset_index(drop=True, inplace=True)
+    return data
+
+def data_columns_(data, need_col, diff_num):
+    index = list(data.columns)
+    drop_col = list(set(index) - set(need_col))
+    data.drop(drop_col, inplace=True, axis=1)
+    data.reset_index(drop=True, inplace=True)
+    for i in range(1, diff_num+1):
+        data = pd.merge(data, data.iloc[:,0:5].diff(i), how='left', on=data.index)
+        data.drop(['key_0'], inplace=True, axis=1)
+    data.dropna(axis=0,inplace=True)
+    data.reset_index(drop=True, inplace=True)
+    return data
+
+def predict_y_samples(data, pre_k, num):
+    data = Standardization(data)
+    for i in range(pre_k):
+        data.loc[data.iloc[(num-1):-(i+1), :].index, 'per_long_'+str(i+1)] = data.iloc[(num+i):,:].LON_x.values
+        data.loc[data.iloc[(num-1):-(i+1), :].index, 'per_lat_'+str(i+1)] = data.iloc[(num+i):,:].LAT_x.values
+        
+    data.drop(index=data.iloc[data.shape[0]-pre_k:, :].index.values, axis=0, inplace = True)
+    return data
+
+def random_point_get_samples(data, num, probability, need_col, pre_k, input_size):
+    index = data.index[data.index >= num]
+    train_index = random.sample(list(index), int(index.shape[0] * probability))
+    # train_index = index[0:int(index.shape[0] * probability)]
+    test_index = list(set(index) - set(train_index))
+    train_x, train_y, test_x, test_y = pd.DataFrame(), {}, pd.DataFrame(), {}
+
+    for j in range(pre_k):
+        train_y[j+1], test_y[j+1] = [], []
+    
+    for i in train_index:
+        train_x = train_x.append(data.loc[int(i-(num-1)):int(i),need_col])
+        for j in range(pre_k):
+            train_y[j+1].append(data.loc[int(i),['per_long_'+str(j+1), 'per_lat_'+str(j+1)]].values)
+            
+    for i in test_index:
+        test_x = test_x.append(data.loc[int(i-(num-1)):int(i),need_col])
+        for j in range(pre_k):
+            test_y[j+1].append(data.loc[int(i),['per_long_'+str(j+1), 'per_lat_'+str(j+1)]].values)
+    
+    return train_index, train_x.values.reshape(-1, num, input_size), test_x.values.reshape(-1, num, input_size), train_y, test_y
+
+def yshape(train_y, test_y):
+    ytrain, ytest = {}, {}
+    for i in list(train_y.keys()):
+        ytrain[i] = np.array(train_y[i])
+        ytest[i] = np.array(test_y[i])
+        if i <= 1:
+            y_train = ytrain[i]
+            y_test = ytest[i]
+        else:
+            y_train = np.c_[y_train, ytrain[i]]
+            y_test = np.c_[y_test, ytest[i]]            
+    return y_train.reshape(-1, 1, y_train.shape[-1]), y_test.reshape(-1, 1, y_test.shape[-1])
+
+
+class Encoder(keras.models.Model):
+    def __init__(self, units=128):
+        """ attent_size:自注意力机制的维度; units: Lstm 输出维度 """
+        super().__init__()
+        self.lstm = keras.layers.LSTM(units, return_sequences=True, return_state=True
+                                        , activity_regularizer=tf.keras.regularizers.l2(0.001) # 输出正则化
+                                        # , kernel_regularizer=tf.keras.regularizers.l2(0.05) # 权重正则化
+                                        # , activation = 'relu'
+                                        ) 
+        self.lstm1 = keras.layers.LSTM(units, return_sequences=True, return_state=True
+                                        , activity_regularizer=tf.keras.regularizers.l2(0.001) # 输出正则化
+                                        # , kernel_regularizer=tf.keras.regularizers.l2(0.05) # 权重正则化
+                                      # , activation = 'relu'
+                                        )
+        self.lstm2 = keras.layers.LSTM(units, return_sequences=True, return_state=True
+                                        , activity_regularizer=tf.keras.regularizers.l2(0.001) # 输出正则化
+                                        # , kernel_regularizer=tf.keras.regularizers.l2(0.05) # 权重正则化
+                                      # , activation = 'relu'
+                                        ) 
+        self.dropout = keras.layers.Dropout(rate=0.3)
+        self.dense0 = keras.layers.Dense(units=128)
+        self.MultiHeadAttention = tf.keras.layers.MultiHeadAttention(num_heads=8, key_dim=20)
+
+        
+    def call(self, inputs):
+        # att_values = self.MultiHeadAttention(inputs, inputs)
+        # inputs = att_values
+        # inputs = self.dense0(inputs)
+        encoder_output, state_h1, state_c1 = self.lstm(inputs)
+        # self.dropout(encoder_output)
+        encoder_output, state_h2, state_c2 = self.lstm1(encoder_output)
+        
+        encoder_output, state_h3, state_c3 = self.lstm2(encoder_output)
+        # print(encoder_output.shape)
+        # print(dense.shape)
+        return encoder_output, [state_h1, state_c1], [state_h2, state_c2], [state_h2, state_c2] #[state_h, state_c]
+            
+class Decoder(keras.models.Model):
+    def __init__(self, units = 128, label = 1, pre_k=None, batch_size =128):
+        """ units: Lstm 输出维度; label:最后输出的结果的维度 """
+        super().__init__()
+        self.pre_k, self.units, self.batch_size, self.label = pre_k, units, batch_size, label
+        self.rnn0 = keras.layers.SimpleRNN(units, return_state=True #, return_sequences=True
+                                        , activity_regularizer=tf.keras.regularizers.l2(0.001) # 输出正则化
+                                        , kernel_regularizer=tf.keras.regularizers.l2(0.001) # 权重正则化
+                                        # , activation = 'relu'
+                                        )
+
+        self.MultiHeadAttention = tf.keras.layers.MultiHeadAttention(num_heads=8, key_dim=20)
+        self.dropout = keras.layers.Dropout(rate=0.5)
+        self.dense1 = keras.layers.Dense(units=128) #, use_bias=False, activation='relu'
+        self.reshape = keras.layers.Reshape((1,-1))
+        self.dense0 = keras.layers.Dense(units=128) #, activation='relu'
+        self.Lstm, self.Lstm1, self.Dense, self.rnn, self.attention, self.Lstm2, self.Dense1 = {}, {}, {}, {}, {}, {}, {}
+        for i in range(self.pre_k):
+            self.Lstm[i] = keras.layers.LSTMCell(units #, return_state=True # , return_sequences=True
+                                        , activity_regularizer=tf.keras.regularizers.l2(0.001) # 输出正则化
+                                        , kernel_regularizer=tf.keras.regularizers.l2(0.001) # 权重正则化
+                                        # , activation = 'relu'
+                                        )
+            self.Lstm1[i] = keras.layers.LSTMCell(units #, return_state=True # , return_sequences=True, return_state=True 
+                                        , activity_regularizer=tf.keras.regularizers.l2(0.001) # 输出正则化
+                                        , kernel_regularizer=tf.keras.regularizers.l2(0.001) # 权重正则化
+                                        # , activation = 'relu'
+                                        )
+            self.Lstm2[i] = keras.layers.LSTMCell(units #, return_state=True # , return_sequences=True, return_state=True 
+                                        , activity_regularizer=tf.keras.regularizers.l2(0.001) # 输出正则化
+                                        , kernel_regularizer=tf.keras.regularizers.l2(0.001) # 权重正则化
+                                        # , activation = 'relu'
+                                        )
+            self.rnn[i] = keras.layers.SimpleRNNCell(units #, return_state=True # return_sequences=True,
+                                        , activity_regularizer=tf.keras.regularizers.l2(0.001) # 输出正则化
+                                        , kernel_regularizer=tf.keras.regularizers.l2(0.001) # 权重正则化
+                                        # , activation = 'relu'
+                                        )
+            self.Dense[i] = keras.layers.Dense(label) #, activation = None
+            self.Dense1[i] = keras.layers.Dense(label)
+            self.attention[i] = keras.layers.Attention()
+            
+    def call(self, inputs, encoder_state1, encoder_state2, encoder_state3, encoder_output):
+
+        mlp_outputs = self.dense0(inputs)
+        inputs = mlp_outputs
+        att_values, weights = self.MultiHeadAttention(inputs, inputs, return_attention_scores=True)
+        print(att_values.shape, mlp_outputs.shape)
+        # att_values = tf.reshape(att_values, shape=[-1, att_values.shape[1] * att_values.shape[2]])
+        # mlp_outputs = tf.reshape(mlp_outputs, shape=[-1, mlp_outputs.shape[1] * mlp_outputs.shape[2]])
+        # inputs = self.dense10(inputs)
+        contanct_input = keras.layers.concatenate([att_values, mlp_outputs], axis=2)
+        # print(contanct_input.shape)
+        rnn_input = self.dense1(contanct_input)
+        # print(rnn_input.shape)
+        # rnn_input = tf.reshape(rnn_input, shape=[-1, 1, rnn_input.shape[1]])
+        # rnnstate_h0 = tf.random.normal(shape=[self.batch_size, rnn_input.shape[1]])
+        # print(rnnstate_h0.shape)
+        att_scores = []
+
+        for i in range(self.pre_k):
+            
+            if i < 1:
+                rnn_output, rnnstate_h = self.rnn0(rnn_input) #, states=rnnstate_h0
+                decoder_output2, state_h2 = self.Lstm[i](rnn_output, states=encoder_state1)
+                decoder_output3, state_h3 = self.Lstm1[i](decoder_output2, states=encoder_state2)
+                decoder_output, state_h = self.Lstm2[i](decoder_output3, states=encoder_state3)
+                # print(i,rnn_output.shape)
+            else:
+                rnn_output, rnnstate_h = self.rnn[i](rnn_input, states=rnnstate_h)
+                decoder_output2, state_h2 = self.Lstm[i](rnn_output, states=state_h2)
+                decoder_output3, state_h3 = self.Lstm1[i](decoder_output2, states=state_h3)
+                decoder_output, state_h = self.Lstm2[i](decoder_output3, states=state_h)
+                # print(i, rnnstate_h.shape)
+                # print(i, rnn_output.shape)
+
+            # decoder_output2, state_h2 = self.Lstm[i](rnn_output, states=encoder_state1)
+            # decoder_output, state_h = self.Lstm1[i](decoder_output2, states=encoder_state2)
+            # print('-----', decoder_output.shape)
+            decoder_output1 = self.reshape(decoder_output)
+            # print(decoder_output1.shape)
+            # print('---', decoder_output1.shape)
+            # print('+++++', encoder_output.shape)
+            attention_output, attention_scores1 = self.attention[i]([decoder_output1, encoder_output]
+                                                             , return_attention_scores=True)
+            att_scores.append(attention_scores1)
+            # print(attention_output.shape)
+            attention_output = tf.reshape(attention_output, shape=[-1, attention_output.shape[2]])
+            # rnn_output = self.reshape(rnn_output)
+            # print(attention_output.shape)
+            # print(rnn_output.shape)
+            # print(decoder_output.shape)
+                
+            contanct_input = keras.layers.concatenate([attention_output, rnn_output
+                                                   , decoder_output], axis=1)
+            # self.dropout(contanct_input) 
+            if i < 1:
+                output1_x = self.Dense[i](contanct_input)
+                output1_y = self.Dense1[i](contanct_input)
+                # print(output1.shape, output1_y.shape)
+                output1 = keras.layers.concatenate([output1_x, output1_y], axis=1)
+                # print(output1.shape)
+                eorr = output1 # - train_y[:,:, 2*i:2*i+1]
+                rnn_input = eorr
+                # print(rnn_input.shape,'shape')
+            else:
+                output_x = self.Dense[i](contanct_input)
+                output_y = self.Dense1[i](contanct_input)
+                # print(output_x.shape, output_y.shape)
+                output = keras.layers.concatenate([output_x, output_y], axis=1)
+                # print(output.shape)
+                # output1 = keras.layers.concatenate([output1, output], axis=1)
+                
+                output1_x = keras.layers.concatenate([output1_x, output_x], axis=1)
+                output1_y = keras.layers.concatenate([output1_y, output_y], axis=1)
+                # print(output1.shape)
+                eorr = output # - train_y[:, :, 2*i:2*i+1]
+                rnn_input = eorr
+                # rnn_input = tf.reshape(eorr, shape=[-1, self.label])
+            # print(i,rnnstate_h)
+            # print(rnn_input.shape)
+        # print(output1.shape)
+        return output1_x,  output1_y, [att_scores, weights]#, [weights, attention_scores1, attention_scores2]
+
+num = 10
+time_step = num
+pre_k = 10
+need_col = ['LON_x', 'LAT_x', 'SOG_x', 'COG_x', 'Heading_x',
+            'LON_x_y', 'LAT_x_y', 'SOG_x_y', 'COG_x_y', 'Heading_x_y'] 
+# , 'speed_knots','trueHeading'
+# 'MMSI_x', 'BaseDateTime_y_x', 'fenzhong', 'LON_x', 'LAT_x', 'SOG_x', 'COG_x', 'Heading_x'
+# , 'LON_x_y', 'LAT_x_y', 'SOG_x_y', 'COG_x_y', 'Heading_x_y'
+data_per1 = data_columns(use_data2, need_col=need_col) #2[60:190]
+input_size = int(len(need_col))
+data_per1 = predict_y_samples(data_per1, pre_k=pre_k, num=num)
+datz= data_per1.copy()
+train_index, train_x, test_x, train_y, test_y = random_point_get_samples(data_per1, input_size=input_size
+                                                                         , num=num
+                                                                         , probability=0.6
+                                                                         , need_col=need_col, pre_k=pre_k)
+y_train, y_test = yshape(train_y, test_y)
+y_train, y_test = y_train.reshape(-1, y_train.shape[2]), y_test.reshape(-1, y_test.shape[2])
+y_train_x, y_train_y = y_train[:,0:20:2], y_train[:,1:20:2]
+y_test_x, y_test_y = y_test[:,0:20:2], y_test[:,1:20:2]
+
+encoder_input = keras.layers.Input(shape=([time_step, train_x.shape[2]]))
+encoder_output,encoder_state1, encoder_state2, encoder_state2 =Encoder()(encoder_input)
+
+output_x, output_y, att_scores = Decoder(pre_k=pre_k)(encoder_input, encoder_state1, encoder_state2, encoder_state2
+                              , encoder_output) #_long, output_lat
+
+model = keras.models.Model([encoder_input], [output_x, output_y])
+model.summary()
+model.compile(loss = keras.losses.MeanSquaredError()
+                          ,optimizer = keras.optimizers.Adam(learning_rate=0.002)  #,epsilon=0.0001
+                          ,metrics=keras.metrics.MeanAbsoluteError()) #RootMeanSquaredError()
+history = model.fit([train_x], [y_train_x, y_train_y], epochs = 1000
+                                , batch_size = 256  
+                                , validation_data=([test_x], [y_test_x, y_test_y]))
+score_ourmodel = model.evaluate([test_x], [y_test_x, y_test_y])
+
+
+plt.plot(history.history[list(history.history.keys())[1]], label='train')
+plt.plot(history.history[list(history.history.keys())[6]], label='test')
+plt.legend()
+plt.xlabel('Epochs', fontsize = 12)
+plt.ylabel('LOSS', fontsize = 12)
+plt.show()
+plt.plot(history.history[list(history.history.keys())[3]], label='train')
+plt.plot(history.history[list(history.history.keys())[-2]], label='test')
+plt.legend()
+plt.xlabel('Epochs', fontsize = 12)
+plt.ylabel('RMSE', fontsize = 12)
+plt.show()
+plt.plot(history.history[list(history.history.keys())[4]], label='train')
+plt.plot(history.history[list(history.history.keys())[-1]], label='test')
+plt.legend()
+plt.xlabel('Epochs', fontsize = 12)
+plt.ylabel('RMSE', fontsize = 12)
+plt.show()
+
+
+
+
